@@ -706,10 +706,6 @@ LN::operator bool() const
 LN::~LN()
 {
 	delete[] ar;
-	~size;
-	~capacity;
-	~sign;
-	~isNan;
 }
 void print(const LN &ln)
 {
