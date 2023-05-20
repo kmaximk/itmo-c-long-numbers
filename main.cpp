@@ -28,10 +28,10 @@ int main(int argc, char* argv[])
 		LN ans = LN(1);
 		while (getline(in, str))
 		{
-//			if (str.at(str.length() - 1) == '\r')
-//			{
-//				str.pop_back();
-//			}
+			if (str.at(str.length() - 1) == '\r')
+			{
+				str.pop_back();
+			}
 			if (str == string("+") || str == "+=")
 			{
 				ans = sta.at(sta.size() - 1) + sta.at(sta.size() - 2);
@@ -110,9 +110,9 @@ int main(int argc, char* argv[])
 			fprintf(stderr, "Cannot open output file\n");
 			return ERROR_CANNOT_OPEN_FILE;
 		}
-		for (int i = 0; i < sta.size(); i++)
+		for (size_t i = 0; i < sta.size(); i++)
 		{
-			::fprintf(f, "%s\n", sta.at(i).toString());
+			::fprintf(f, "%s\n", sta.at(sta.size() - i - 1).toString());
 		}
 		fclose(f);
 	} catch (int x)
