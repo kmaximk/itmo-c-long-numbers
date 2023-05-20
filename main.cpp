@@ -103,6 +103,7 @@ int main(int argc, char* argv[])
 				sta.push_back(ans);
 			}
 		}
+		in.close();
 		FILE* f = ::fopen(argv[2], "w");
 		if (!f)
 		{
@@ -113,6 +114,7 @@ int main(int argc, char* argv[])
 		{
 			::fprintf(f, "%s\n", sta.at(i).toString());
 		}
+		fclose(f);
 	} catch (int x)
 	{
 		if (x == 2)
