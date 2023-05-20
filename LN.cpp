@@ -3,10 +3,11 @@
 //
 #include "LN.h"
 
-#include <string.h>
 #include <string_view>
+
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 LN::LN(const char *num)
 {
 	size_t s = strlen(num);
@@ -649,8 +650,10 @@ void LN::ensureCapacity()
 		ar = newAr;
 	}
 }
-void LN::resize(size_t newcap) {
-	if (capacity < newcap) {
+void LN::resize(size_t newcap)
+{
+	if (capacity < newcap)
+	{
 		capacity = newcap;
 		auto *newAr = new uint8_t[capacity];
 		if (!newAr)
@@ -664,7 +667,8 @@ void LN::resize(size_t newcap) {
 }
 LN &LN::operator+=(const LN &ln)
 {
-	if (isNan || ln.isNan) {
+	if (isNan || ln.isNan)
+	{
 		isNan = 1;
 		return *this;
 	}
@@ -673,7 +677,8 @@ LN &LN::operator+=(const LN &ln)
 }
 LN &LN::operator-=(const LN &ln)
 {
-	if (isNan || ln.isNan) {
+	if (isNan || ln.isNan)
+	{
 		isNan = 1;
 		return *this;
 	}
@@ -682,7 +687,8 @@ LN &LN::operator-=(const LN &ln)
 }
 LN &LN::operator*=(const LN &ln)
 {
-	if (isNan || ln.isNan) {
+	if (isNan || ln.isNan)
+	{
 		isNan = 1;
 		return *this;
 	}
@@ -890,7 +896,8 @@ LN &LN::operator/=(const LN &ln)
 	divideSigned(*this, ln);
 	return *this;
 }
-void LN::divideSigned(LN &ret, const LN &ln) const {
+void LN::divideSigned(LN &ret, const LN &ln) const
+{
 	LN copy = LN();
 	copy = *this;
 	ret.sign = sign == ln.sign ? 1 : -1;
