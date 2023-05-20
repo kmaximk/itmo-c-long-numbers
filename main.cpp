@@ -28,10 +28,10 @@ int main(int argc, char* argv[])
 		LN ans = LN(1);
 		while (getline(in, str))
 		{
-			if (str.at(str.length() - 1) == '\r')
-			{
-				str.pop_back();
-			}
+//			if (str.at(str.length() - 1) == '\r')
+//			{
+//				str.pop_back();
+//			}
 			if (str == string("+") || str == "+=")
 			{
 				ans = sta.at(sta.size() - 1) + sta.at(sta.size() - 2);
