@@ -18,7 +18,8 @@ int main(int argc, char* argv[])
 	try
 	{
 		ifstream in(argv[1], std::ifstream::binary);
-		if (!in) {
+		if (!in)
+		{
 			fprintf(stderr, "Cannot open input file\n");
 			return ERROR_CANNOT_OPEN_FILE;
 		}
@@ -79,7 +80,8 @@ int main(int argc, char* argv[])
 			{
 				ans = ~sta.at(sta.size() - 1);
 			}
-			else if (str == "_") {
+			else if (str == "_")
+			{
 				ans = -sta.at(sta.size() - 1);
 			}
 			else
@@ -88,9 +90,8 @@ int main(int argc, char* argv[])
 				sta.emplace_back(sti);
 				continue;
 			}
-			if (str == "+" || str == "-" || str == "*" || str == "/" || str == "==" ||
-				str == ">=" || str == "<=" || str == "<" || str == ">" || str == "!=" || str == "%" || str == "+=" ||
-				str == "-=" || str == "*=" || str == "/=" || str == "%=")
+			if (str == "+" || str == "-" || str == "*" || str == "/" || str == "==" || str == ">=" || str == "<=" || str == "<" ||
+				str == ">" || str == "!=" || str == "%" || str == "+=" || str == "-=" || str == "*=" || str == "/=" || str == "%=")
 			{
 				sta.pop_back();
 				sta.pop_back();
@@ -102,8 +103,9 @@ int main(int argc, char* argv[])
 				sta.push_back(ans);
 			}
 		}
-		FILE* f = ::fopen("output.txt", "w");
-		if (!f) {
+		FILE* f = ::fopen(argv[2], "w");
+		if (!f)
+		{
 			fprintf(stderr, "Cannot open output file\n");
 			return ERROR_CANNOT_OPEN_FILE;
 		}
