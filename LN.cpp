@@ -166,7 +166,6 @@ LN LN::operator~() const
 	curr.size = 0;
 	LN ost = LN();
 	ost.size = 0;
-	uint8_t leftover[] = { 0, 0 };
 	for (size_t i = 0; i < size; i += 2)
 	{
 		curr.ar[0] = ar[size - i - 1 - (size % 2 == 0)];
@@ -960,7 +959,6 @@ void LN::divideSigned(LN &ret, const LN &ln) const
 			}
 		}
 		takenSize = temp.size;
-		int x = greater;
 		LN temp2 = LN();
 		temp2 = ln;
 		temp2.sign = 1;
