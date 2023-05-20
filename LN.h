@@ -32,7 +32,7 @@ struct LN
 	LN operator+(const LN &ln) const;
 	void addSigned(LN &ret, const LN &ln) const;
 	int addModule(const LN &ln, LN *ret) const;
-	void divideSigned(LN& ret, const LN &ln) const;
+	void divideSigned(LN &ret, const LN &ln) const;
 	int compareTo(const LN &ln) const;
 	int compareModule(const LN &ln) const;
 	void ensureCapacity();
