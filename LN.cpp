@@ -5,7 +5,6 @@
 
 #include <string_view>
 
-#include <exception>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -67,11 +66,6 @@ LN::LN(long long num)
 {
 	capacity_ = sizeof(size_t) + 2;
 	number_ = new uint8_t[capacity_];
-	if (!number_)
-	{
-		// throw std::bad_alloc();
-		throw LNOutOfMemoryException("Not enough memory\n");
-	}
 	this->sign_ = (num >= 0) ? 1 : -1;
 	size_t n = (num >= 0) ? num : -num;
 	size_ = 0;
@@ -97,10 +91,6 @@ LN::LN(const LN &x)
 	capacity_ = x.capacity_;
 	isNan_ = x.isNan_;
 	number_ = new uint8_t[capacity_];
-	if (!number_)
-	{
-		throw LNOutOfMemoryException("Not enough memory\n");
-	}
 	memcpy(number_, x.number_, size_);
 }
 // copy assignment operator
@@ -114,10 +104,6 @@ LN &LN::operator=(const LN &ln)
 		sign_ = ln.sign_;
 		isNan_ = ln.isNan_;
 		number_ = new ::uint8_t[capacity_];
-		if (!number_)
-		{
-			throw LNOutOfMemoryException("Not enough memory\n");
-		}
 		memcpy(number_, ln.number_, size_);
 		return *this;
 	}
@@ -726,10 +712,6 @@ void LN::ensureCapacity()
 	{
 		capacity_ = 2 * capacity_;
 		auto *newAr = new uint8_t[capacity_];
-		if (!newAr)
-		{
-			throw LNOutOfMemoryException("Not enough memory\n");
-		}
 		memcpy(newAr, number_, size_ * sizeof(uint8_t));
 		delete[] number_;
 		number_ = newAr;
@@ -741,10 +723,6 @@ void LN::resize(size_t newcap)
 	{
 		capacity_ = newcap;
 		auto *newAr = new uint8_t[capacity_];
-		if (!newAr)
-		{
-			throw LNOutOfMemoryException("Not enough memory\n");
-		}
 		memcpy(newAr, number_, size_ * sizeof(uint8_t));
 		delete[] number_;
 		number_ = newAr;
@@ -817,10 +795,6 @@ char *LN::toString() const
 	}
 	size_t strSize = size_ * 2 + 1 - (number_[size_ - 1] < 16) + (sign_ == -1);
 	char *str = new char[strSize];
-	if (!str)
-	{
-		throw LNOutOfMemoryException("Not enough memory\n");
-	}
 	str[strSize - 1] = '\0';
 	strSize--;
 	for (int i = 0; i < size_; i++)
@@ -850,10 +824,6 @@ LN::LN(const std::string_view num)
 	capacity_ = (s + 1) / 2 + 2;
 	isNan_ = 0;
 	number_ = new uint8_t[capacity_];
-	if (!number_)
-	{
-		throw LNOutOfMemoryException("Not enough memory\n");
-	}
 	if (num[0] == '-')
 	{
 		sign_ = -1;
