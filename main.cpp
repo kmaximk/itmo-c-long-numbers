@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
 		}
 		for (size_t i = 0; i < sta.size(); i++)
 		{
-			::fprintf(f, "%s\n", sta.at(i).toString());
+			::fprintf(f, "%s\n", sta.at(sta.size() - i - 1).toString());
 		}
 		fclose(f);
 	} catch (const LNOutOfMemoryException& e)
