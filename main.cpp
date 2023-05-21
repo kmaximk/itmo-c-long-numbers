@@ -117,9 +117,9 @@ int main(int argc, char* argv[])
 			::fprintf(f, "%s\n", sta.at(sta.size() - i - 1).toString());
 		}
 		fclose(f);
-	} catch (const LNOutOfMemoryException& e)
+	} catch (const std::bad_alloc& e)
 	{
-		fprintf(stderr, "%s", e.message);
+		fprintf(stderr, "Not enough memory\n");
 		return ERROR_OUT_OF_MEMORY;
 	}
 	return SUCCESS;
