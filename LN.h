@@ -55,27 +55,25 @@ class LN
 	void divideSigned(LN &ret, const LN &ln) const;
 	int compareTo(const LN &ln) const;
 	int compareModule(const LN &ln) const;
-	void karatsubaMultiply(LN& ret, const LN& ln) const;
+	void karatsubaMultiply(LN &ret, const LN &ln) const;
 	void ensureCapacity();
 	void resize(size_t newcap);
 	static int makeNum(char c);
 	static char makeChar(int num);
-	static void lnReverse(LN& ln);
+	static void lnReverse(LN &ln);
 	static void print(const LN &ln);
 };
 LN operator"" _ln(const char *ln);
 
-struct LNOverflowException {
-	const char* message;
-	explicit LNOverflowException(const char* string) {
-		this->message = string;
-	}
+struct LNOverflowException
+{
+	const char *message;
+	explicit LNOverflowException(const char *string) { this->message = string; }
 };
-struct LNOutOfMemoryException {
-	const char* message;
-	explicit LNOutOfMemoryException(const char* string) {
-		this->message = string;
-	}
+struct LNOutOfMemoryException
+{
+	const char *message;
+	explicit LNOutOfMemoryException(const char *string) { this->message = string; }
 };
 
 #endif	  // LN_H
