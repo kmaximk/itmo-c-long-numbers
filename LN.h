@@ -70,10 +70,5 @@ struct LNOverflowException
 	const char *message;
 	explicit LNOverflowException(const char *string) { this->message = string; }
 };
-struct LNOutOfMemoryException
-{
-	const char *message;
-	explicit LNOutOfMemoryException(const char *string) { this->message = string; }
-};
 
 #endif	  // LN_H
