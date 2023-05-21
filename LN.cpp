@@ -5,47 +5,50 @@
 
 #include <string_view>
 
+#include <exception>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 LN::LN(const char *num)
 {
 	size_t s = strlen(num);
-	size_t ind = s - 1;
-	capacity = s / 2;
-	isNan = 0;
-	ar = new uint8_t[capacity];
-	if (!ar)
-	{
-		throw 2;
-	}
+	size_t ind = s;
+	capacity_ = (s + 1) / 2 + 2;
+	isNan_ = 0;
+	number_ = new uint8_t [capacity_];
 	if (num[0] == '-')
 	{
-		sign = -1;
+		sign_ = -1;
 		if (num[1] == '0' && ind == 2)
 		{
-			sign = 0;
+			sign_ = 0;
+			size_ = 1;
+			number_[0] = 0;
+			return;
 		}
 	}
 	else
 	{
-		sign = 1;
+		sign_ = 1;
 		if (num[0] == '0' && ind == 1)
 		{
-			sign = 0;
+			sign_ = 0;
+			size_ = 1;
+			number_[0] = 0;
+			return;
 		}
 	}
-	size = 0;
-	int begin = (1 + (sign == -1));
-	if (ind > 1 && num[1] == 'X' || num[1] == 'x')
+	size_ = 0;
+	int begin = (0 + (sign_ == -1));
+	if (ind > 1 && (num[1 + (sign_ == -1)] == 'X' || num[1 + (sign_ == - 1)] == 'x'))
 	{
 		begin += 2;
 	}
-	while (ind > begin)
+	while (ind - begin >= 2)
 	{
-		size_t nu = makeNum(num[ind]) + 16 * makeNum(num[ind - 1]);
-		ar[size] = nu;
-		size++;
+		size_t nu = makeNum(num[ind - 1]) + 16 * makeNum(num[ind - 2]);
+		number_[size_] = nu;
+		size_++;
 		ensureCapacity();
 		if (ind < 2)
 		{
@@ -53,75 +56,69 @@ LN::LN(const char *num)
 		}
 		ind -= 2;
 	}
-	if (ind == begin)
+	if (ind == begin + 1)
 	{
-		ar[size] = makeNum(num[ind]) + 16 * makeNum(num[ind - 1]);
-		size++;
-		ensureCapacity();
-	}
-	if (ind == begin - 1)
-	{
-		ar[size] = makeNum(num[ind]);
-		size++;
+		number_[size_] = makeNum(num[ind - 1]);
+		size_++;
 		ensureCapacity();
 	}
 }
 LN::LN(long long num)
 {
-	capacity = sizeof(size_t) + 1;
-	capacity = 1;
-	ar = new uint8_t[capacity];
-	if (!ar)
+	capacity_ = sizeof(size_t) + 2;
+	number_ = new uint8_t[capacity_];
+	if (!number_)
 	{
-		throw 2;
+		//throw std::bad_alloc();
+		throw LNOutOfMemoryException("Not enough memory\n");;
 	}
-	this->sign = (num >= 0) ? 1 : -1;
+	this->sign_ = (num >= 0) ? 1 : -1;
 	size_t n = (num >= 0) ? num : -num;
-	size = 0;
-	isNan = 0;
+	size_ = 0;
+	isNan_ = 0;
 	while (n > 0)
 	{
-		ar[size] = n % DEL;
-		size++;
+		number_[size_] = n % DEL_;
+		size_++;
 		ensureCapacity();
-		n /= DEL;
+		n /= DEL_;
 	}
 	if (num == 0)
 	{
-		sign = 0;
-		ar[size] = 0;
-		size = 1;
+		sign_ = 0;
+		number_[size_] = 0;
+		size_ = 1;
 	}
 }
 LN::LN(const LN &x)
 {
-	size = x.size;
-	sign = x.sign;
-	capacity = x.capacity;
-	isNan = x.isNan;
-	ar = new uint8_t[capacity];
-	if (!ar)
+	size_ = x.size_;
+	sign_ = x.sign_;
+	capacity_ = x.capacity_;
+	isNan_ = x.isNan_;
+	number_ = new uint8_t[capacity_];
+	if (!number_)
 	{
-		throw 2;
+		throw LNOutOfMemoryException("Not enough memory\n");;
 	}
-	memcpy(ar, x.ar, size);
+	memcpy(number_, x.number_, size_);
 }
 // copy assignment operator
 LN &LN::operator=(const LN &ln)
 {
 	if (this != &ln)
 	{
-		delete[] ar;
-		size = ln.size;
-		capacity = ln.capacity;
-		sign = ln.sign;
-		isNan = ln.isNan;
-		ar = new ::uint8_t[capacity];
-		if (!ar)
+		delete[] number_;
+		size_ = ln.size_;
+		capacity_ = ln.capacity_;
+		sign_ = ln.sign_;
+		isNan_ = ln.isNan_;
+		number_ = new ::uint8_t[capacity_];
+		if (!number_)
 		{
-			throw 2;
+			throw LNOutOfMemoryException("Not enough memory\n");;
 		}
-		memcpy(ar, ln.ar, size);
+		memcpy(number_, ln.number_, size_);
 		return *this;
 	}
 	return *this;
@@ -129,129 +126,199 @@ LN &LN::operator=(const LN &ln)
 // move assignment operator
 LN &LN::operator=(LN &&ln) noexcept
 {
-	delete[] ar;
-	size = ln.size;
-	capacity = ln.capacity;
-	sign = ln.sign;
-	isNan = ln.isNan;
-	ar = ln.ar;
-	ln.ar = nullptr;
-	ln.size = 0;
+	delete[] number_;
+	size_ = ln.size_;
+	capacity_ = ln.capacity_;
+	sign_ = ln.sign_;
+	isNan_ = ln.isNan_;
+	number_ = ln.number_;
+	ln.number_ = nullptr;
+	ln.size_ = 0;
 	return *this;
 }
 // move constructor
 LN::LN(LN &&ln) noexcept
 {
-	size = ln.size;
-	capacity = ln.capacity;
-	sign = ln.sign;
-	isNan = ln.isNan;
-	ar = ln.ar;
-	ln.ar = nullptr;
-	ln.size = 0;
+	size_ = ln.size_;
+	capacity_ = ln.capacity_;
+	sign_ = ln.sign_;
+	isNan_ = ln.isNan_;
+	number_ = ln.number_;
+	ln.number_ = nullptr;
+	ln.size_ = 0;
 }
 LN LN::operator~() const
 {
 	LN ret = LN();
-	if (sign < 0 || isNan)
+	if (sign_ < 0 || isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
-	ret.sign = 1;
+	ret.sign_ = 1;
 	LN curr = LN();
 	LN rett = LN();
-	rett.size = 0;
-	rett.sign = 1;
-	curr.size = 0;
+	rett.size_ = 0;
+	rett.sign_ = 1;
+	curr.size_ = 0;
 	LN ost = LN();
-	ost.size = 0;
-	for (size_t i = 0; i < size; i += 2)
+	ost.size_ = 0;
+	for (size_t i = 0; i < size_; i += 2)
 	{
-		curr.ar[0] = ar[size - i - 1 - (size % 2 == 0)];
-		if (size % 2 != 0 && i == 0)
+		curr.number_[0] = number_[size_ - i - 1 - (size_ % 2 == 0)];
+		if (size_ % 2 != 0 && i == 0)
 		{
-			curr.ar[1] = 0;
+			curr.number_[1] = 0;
 		}
 		else
 		{
-			curr.ar[1] = ar[size - i - (size % 2 == 0)];
+			curr.number_[1] = number_[size_ - i - (size_ % 2 == 0)];
 		}
-		for (int j = 2; j < ost.size + 2; j++)
+		for (int j = 2; j < ost.size_ + 2; j++)
 		{
-			curr.ar[j] = ost.ar[j - 2];
-			curr.size = j + 1;
+			curr.number_[j] = ost.number_[j - 2];
+			curr.size_ = j + 1;
 			curr.ensureCapacity();
 		}
-		curr.size = 1 + (size % 2 == 0 || i != 0) + ost.size;
-		curr.sign = 1;
+		curr.size_ = 1 + (size_ % 2 == 0 || i != 0) + ost.size_;
+		curr.sign_ = 1;
 		int nextNum = 255;
+		size_t zero = 0;
+		while (curr.number_[curr.size_ - zero - 1] == 0 && zero < curr.size_) {
+			zero++;
+		}
+		curr.size_ = curr.size_ - zero;
+		if (curr.size_ == 0) {
+			curr.size_ = 1;
+			curr.sign_ = 0;
+		}
 		for (int j = 1; j < 256; j++)
 		{
-			LN vich = LN(j) * (ret + LN(j));
-			if (vich > curr)
+			LN subtr = LN(j) * (ret + LN(j));
+			if (subtr > curr)
 			{
 				nextNum = j - 1;
 				break;
 			}
 		}
-		LN vich = (LN(nextNum) * (ret + LN(nextNum)));
-		ost = curr - vich;
-		ret.ar[0] = nextNum;
-		rett.ar[rett.size] = nextNum;
-		rett.size++;
+		LN subtr = (LN(nextNum) * (ret + LN(nextNum)));
+		ost = curr - subtr;
+		rett.number_[rett.size_] = nextNum;
+		rett.size_++;
 		rett.ensureCapacity();
-		ret = ret * LN(512);
+		ret = (ret + LN(2 * nextNum)) * LN(256);
 	}
-	for (size_t i = 0; i < rett.size / 2; i++)
+	lnReverse(rett);
+	if (rett.number_[0] == 0 && rett.size_ == 1)
 	{
-		int temp = rett.ar[i];
-		rett.ar[i] = rett.ar[rett.size - i - 1];
-		rett.ar[rett.size - i - 1] = temp;
-	}
-	if (rett.ar[0] == 0 && rett.size == 1)
-	{
-		rett.sign = 0;
+		rett.sign_ = 0;
 	}
 	return rett;
 }
 LN LN::operator-()
 {
 	LN ret = LN(*this);
-	if (isNan)
+	if (isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
-	ret.sign = sign * -1;
+	ret.sign_ = sign_ * -1;
 	return ret;
 }
-
+void LN::lnReverse(LN &ln)
+{
+	for (size_t i = 0; i < ln.size_ / 2; i++)
+	{
+		int temp = ln.number_[i];
+		ln.number_[i] = ln.number_[ln.size_ - i - 1];
+		ln.number_[ln.size_ - i - 1] = temp;
+	}
+}
+void LN::karatsubaMultiply(LN& ret, const LN& ln) const
+{
+	if (size_ <= 2 || ln.size_ <= 2) {
+		multiplySigned(ret, ln);
+		return;
+	}
+	size_t msize = std::min(size_, ln.size_);
+	LN a;
+	if (size_ > msize / 2) {
+		a = LN(1);
+		a.resize(size_ - msize / 2 + 2);
+		a.size_ = size_ - msize / 2;
+	} else {
+		a = LN();
+	}
+	if (size_ > msize / 2) {
+		memcpy(a.number_, number_ + msize / 2, size_ - msize / 2);
+	}
+	LN b = LN(1);
+	b.resize(msize / 2 + 2);
+	b.size_ = msize / 2;
+	memcpy(b.number_, number_, msize / 2);
+	LN c = LN(1);
+	c.resize(ln.size_ - msize / 2 + 2);
+	c.size_ = ln.size_ - msize / 2;
+	memcpy(c.number_, ln.number_ + msize / 2, ln.size_ - msize / 2);
+	LN d = LN(1);
+	d.resize(msize / 2 + 2);
+	d.size_ = msize / 2;
+	memcpy(d.number_, ln.number_, msize / 2);
+	LN ac = LN();
+	a.karatsubaMultiply(ac, c);
+	LN bd = LN();
+	LN bracket = LN();
+	(a + b).karatsubaMultiply(bracket, (c + d));
+	b.karatsubaMultiply(bd, d);
+	bracket -= (ac + bd);
+	size_t x2 = (msize / 2) + (msize / 2);
+	a.resize(x2 + ac.size_ + 5);
+	a.size_ = x2 + ac.size_;
+	for (size_t i = 0; i < x2; i++) {
+		a.number_[i] = 0;
+	}
+	for (size_t i = x2; i < ac.size_ + x2; i++) {
+		a.number_[i] = ac.number_[i - x2];
+	}
+	b.resize((msize / 2) + bracket.size_ + 5);
+	b.size_ = (msize / 2) + bracket.size_;
+	for (size_t i = 0; i < msize / 2; i++) {
+		b.number_[i] = 0;
+	}
+	for (size_t i = msize / 2; i < bracket.size_ + (msize / 2); i++) {
+		b.number_[i] = bracket.number_[i - (msize / 2)];
+	}
+	ret = a + b + bd;
+	if (sign_ != ln.sign_) {
+		ret.sign_ = -1;
+	}
+}
 int LN::subtractModule(const LN &ln, LN *ret) const
 {
-	int perenos = 0;
-	size_t length = std::min(size, ln.size) - (size == ln.size);
-	size_t old = size;
+	int carry = 0;
+	size_t length = std::min(size_, ln.size_) - (size_ == ln.size_);
+	size_t old = size_;
 	int zero = 0;
-	ret->size = 0;
+	ret->size_ = 0;
 	for (size_t i = 0; i < length; i++)
 	{
-		if (ar[i] < perenos)
+		if (number_[i] < carry)
 		{
-			ret->ar[i] = DEL - ln.ar[i] - 1;
-			perenos = 1;
+			ret->number_[i] = DEL_ - ln.number_[i] - 1;
+			carry = 1;
 		}
-		else if (ar[i] - perenos < ln.ar[i])
+		else if (number_[i] - carry < ln.number_[i])
 		{
-			ret->ar[i] = ar[i] - perenos - ln.ar[i];
-			perenos = 1;
+			ret->number_[i] = number_[i] - carry - ln.number_[i];
+			carry = 1;
 		}
 		else
 		{
-			ret->ar[i] = ar[i] - ln.ar[i] - perenos;
-			perenos = 0;
+			ret->number_[i] = number_[i] - ln.number_[i] - carry;
+			carry = 0;
 		}
-		if (ret->ar[i] != 0)
+		if (ret->number_[i] != 0)
 		{
 			zero = 0;
 		}
@@ -259,21 +326,21 @@ int LN::subtractModule(const LN &ln, LN *ret) const
 		{
 			zero++;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	if (old == ln.size)
+	if (old == ln.size_)
 	{
-		if (ar[ret->size] - perenos < ln.ar[ret->size])
+		if (number_[ret->size_] - carry < ln.number_[ret->size_])
 		{
-			ret->ar[ret->size] = (ln.ar[ret->size] - ar[ret->size]) - perenos;
+			ret->number_[ret->size_] = (ln.number_[ret->size_] - number_[ret->size_]) - carry;
 		}
 		else
 		{
-			ret->ar[ret->size] = ar[ret->size] - ln.ar[ret->size] - perenos;
-			perenos = 0;
+			ret->number_[ret->size_] = number_[ret->size_] - ln.number_[ret->size_] - carry;
+			carry = 0;
 		}
-		if (ret->ar[ret->size] != 0)
+		if (ret->number_[ret->size_] != 0)
 		{
 			zero = 0;
 		}
@@ -281,22 +348,22 @@ int LN::subtractModule(const LN &ln, LN *ret) const
 		{
 			zero++;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	for (size_t i = ret->size; i < old; i++)
+	for (size_t i = ret->size_; i < old; i++)
 	{
-		if (ar[i] < perenos)
+		if (number_[i] < carry)
 		{
-			ret->ar[i] = DEL - 1;
-			perenos = 1;
+			ret->number_[i] = DEL_ - 1;
+			carry = 1;
 		}
 		else
 		{
-			ret->ar[i] = ar[i] - perenos;
-			perenos = 0;
+			ret->number_[i] = number_[i] - carry;
+			carry = 0;
 		}
-		if (ret->ar[ret->size] != 0)
+		if (ret->number_[ret->size_] != 0)
 		{
 			zero = 0;
 		}
@@ -304,29 +371,29 @@ int LN::subtractModule(const LN &ln, LN *ret) const
 		{
 			zero++;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	ret->sign = zero == ret->size ? 0 : ret->sign;
-	ret->size = ret->size - zero + (zero == ret->size);
+	ret->sign_ = zero == ret->size_ ? 0 : ret->sign_;
+	ret->size_ = ret->size_ - zero + (zero == ret->size_);
 	return 1;
 }
 LN LN::operator%(const LN &ln) const
 {
-	if (ln.sign == 0 || isNan || ln.isNan)
+	if (ln.sign_ == 0 || isNan_ || ln.isNan_)
 	{
 		LN ret = LN();
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
 	return *this - ((*this / ln) * ln);
 }
 LN LN::operator/(const LN &ln) const
 {
-	LN ret = LN();
-	if (ln.sign == 0 || ln.isNan || isNan)
+	LN ret = LN(1);
+	if (ln.sign_ == 0 || ln.isNan_ || isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
 	divideSigned(ret, ln);
@@ -335,9 +402,9 @@ LN LN::operator/(const LN &ln) const
 LN LN::operator-(const LN &ln) const
 {
 	LN ret = LN();
-	if (isNan || ln.isNan)
+	if (isNan_ || ln.isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
 	subtractSigned(ret, ln);
@@ -348,119 +415,123 @@ void LN::subtractSigned(LN &ret, const LN &ln) const
 	int cmp = compareModule(ln);
 	if (cmp == 0)
 	{
-		if (sign == ln.sign)
+		if (sign_ == ln.sign_)
 		{
-			ret.ar[0] = 0;
-			ret.size = 1;
-			ret.sign = 0;
+			ret.number_[0] = 0;
+			ret.size_ = 1;
+			ret.sign_ = 0;
 			return;
 		}
 		cmp = 1;
 	}
-	if (sign <= 0 && ln.sign <= 0 && cmp == -1)
+	if (sign_ <= 0 && ln.sign_ <= 0 && cmp == -1)
 	{
 		ln.subtractModule(*this, &ret);
-		ret.sign = 1;
+		ret.sign_ = 1;
 	}
-	else if (sign <= 0 && ln.sign <= 0 && cmp == 1)
+	else if (sign_ <= 0 && ln.sign_ <= 0 && cmp == 1)
 	{
 		subtractModule(ln, &ret);
-		ret.sign = -1;
+		ret.sign_ = -1;
 	}
-	else if (sign <= 0 && ln.sign >= 0)
+	else if (sign_ <= 0 && ln.sign_ >= 0)
 	{
 		addModule(ln, &ret);
-		ret.sign = -1;
+		ret.sign_ = -1;
 	}
-	else if (sign >= 0 && ln.sign <= 0)
+	else if (sign_ >= 0 && ln.sign_ <= 0)
 	{
 		addModule(ln, &ret);
-		ret.sign = 1;
+		ret.sign_ = 1;
 	}
-	else if (sign >= 0 && ln.sign >= 0 && cmp == -1)
+	else if (sign_ >= 0 && ln.sign_ >= 0 && cmp == -1)
 	{
 		ln.subtractModule(*this, &ret);
-		ret.sign = -1;
+		ret.sign_ = -1;
 	}
-	else if (sign >= 0 && ln.sign >= 0 && cmp == 1)
+	else if (sign_ >= 0 && ln.sign_ >= 0 && cmp == 1)
 	{
 		subtractModule(ln, &ret);
-		ret.sign = 1;
+		ret.sign_ = 1;
 	}
-	if (ret.size == 1 && ret.ar[0] == 0)
+	if (ret.size_ == 1 && ret.number_[0] == 0)
 	{
-		ret.sign = 0;
+		ret.sign_ = 0;
 	}
 }
 LN LN::operator*(const LN &ln) const
 {
 	LN ret = LN();
-	if (isNan)
+	if (isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
-	if (sign == 0 || ln.sign == 0)
+	if (sign_ == 0 || ln.sign_ == 0)
 	{
 		return ret;
 	}
-	multiplySigned(ret, ln);
+	if (std::min(size_, ln.size_) < 7) {
+		multiplySigned(ret, ln);
+	} else {
+		karatsubaMultiply(ret, ln);
+	}
 	return ret;
 }
 void LN::multiplySigned(LN &ret, const LN &ln) const
 {
 	uint32_t pere = 0;
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < size_; i++)
 	{
 		LN t = LN();
-		t.size = 0;
+		t.size_ = 0;
 		for (int j = 0; j < i; j++)
 		{
-			t.ar[j] = 0;
-			t.size++;
+			t.number_[j] = 0;
+			t.size_++;
 			t.ensureCapacity();
 		}
-		for (int j = 0; j < ln.size; j++)
+		for (int j = 0; j < ln.size_; j++)
 		{
-			uint32_t temp = ar[i] * ln.ar[j] + pere;
-			pere = temp / DEL;
-			t.ar[t.size] = temp % DEL;
-			t.size++;
+			uint32_t temp = number_[i] * ln.number_[j] + pere;
+			pere = temp / DEL_;
+			t.number_[t.size_] = temp % DEL_;
+			t.size_++;
 			t.ensureCapacity();
 		}
 		if (pere != 0)
 		{
-			t.ar[t.size] = pere;
+			t.number_[t.size_] = pere;
 			pere = 0;
-			t.size++;
+			t.size_++;
 			t.ensureCapacity();
 		}
 		t.addModule(ret, &ret);
 	}
 	if (pere > 0)
 	{
-		ret.ar[ret.size] = pere;
-		ret.size++;
+		ret.number_[ret.size_] = pere;
+		ret.size_++;
 		ret.ensureCapacity();
 	}
-	if (sign != ln.sign)
+	if (sign_ != ln.sign_)
 	{
-		ret.sign = -1;
+		ret.sign_ = -1;
 	}
 	else
 	{
-		ret.sign = 1;
+		ret.sign_ = 1;
 	}
 }
 LN LN::operator+(const LN &ln) const
 {
 	LN ret = LN();
-	if (isNan || ln.isNan)
+	if (isNan_ || ln.isNan_)
 	{
-		ret.isNan = 1;
+		ret.isNan_ = 1;
 		return ret;
 	}
-	ret.size = 0;
+	ret.size_ = 0;
 	addSigned(ret, ln);
 	return ret;
 }
@@ -469,81 +540,81 @@ void LN::addSigned(LN &ret, const LN &ln) const
 	int cmp = compareModule(ln);
 	if (cmp == 0)
 	{
-		if (sign != ln.sign)
+		if (sign_ != ln.sign_)
 		{
-			ret.ar[0] = 0;
-			ret.size = 1;
-			ret.sign = 0;
+			ret.number_[0] = 0;
+			ret.size_ = 1;
+			ret.sign_ = 0;
 			return;
 		}
 		cmp = 1;
 	}
-	if (sign <= 0 && ln.sign <= 0 && cmp == -1)
+	if (sign_ <= 0 && ln.sign_ <= 0 && cmp == -1)
 	{
-		ret.sign = -1;
+		ret.sign_ = -1;
 		addModule(ln, &ret);
 	}
-	else if (sign <= 0 && ln.sign <= 0 && cmp == 1)
+	else if (sign_ <= 0 && ln.sign_ <= 0 && cmp == 1)
 	{
-		ret.sign = -1;
+		ret.sign_ = -1;
 		addModule(ln, &ret);
 	}
-	else if (sign <= 0 && ln.sign >= 0 && cmp == -1)
+	else if (sign_ <= 0 && ln.sign_ >= 0 && cmp == -1)
 	{
-		ret.sign = 1;
+		ret.sign_ = 1;
 		ln.subtractModule(*this, &ret);
 	}
-	else if (sign <= 0 && ln.sign >= 0 && cmp == 1)
+	else if (sign_ <= 0 && ln.sign_ >= 0 && cmp == 1)
 	{
-		ret.sign = -1;
+		ret.sign_ = -1;
 		subtractModule(ln, &ret);
 	}
-	else if (sign >= 0 && ln.sign <= 0 && cmp == 1)
+	else if (sign_ >= 0 && ln.sign_ <= 0 && cmp == 1)
 	{
-		ret.sign = 1;
+		ret.sign_ = 1;
 		subtractModule(ln, &ret);
 	}
-	else if (sign >= 0 && ln.sign <= 0 && cmp == -1)
+	else if (sign_ >= 0 && ln.sign_ <= 0 && cmp == -1)
 	{
-		ret.sign = -1;
+		ret.sign_ = -1;
 		ln.subtractModule(*this, &ret);
 	}
-	else if (sign >= 0 && ln.sign >= 0 && cmp == -1)
+	else if (sign_ >= 0 && ln.sign_ >= 0 && cmp == -1)
 	{
-		ret.sign = 1;
+		ret.sign_ = 1;
 		addModule(ln, &ret);
 	}
-	else if (sign >= 0 && ln.sign >= 0 && cmp == 1)
+	else if (sign_ >= 0 && ln.sign_ >= 0 && cmp == 1)
 	{
-		ret.sign = 1;
+		ret.sign_ = 1;
 		addModule(ln, &ret);
 	}
-	if (ret.size == 1 && ret.ar[0] == 0)
+	if (ret.size_ == 1 && ret.number_[0] == 0)
 	{
-		ret.sign = 0;
+		ret.sign_ = 0;
 	}
 }
 int LN::addModule(const LN &ln, LN *ret) const
 {
-	int perenos = 0;
+	int carry = 0;
 	int zero = 0;
-	size_t length = std::min(size, ln.size);
-	size_t old = size;
-	ret->size = 0;
+	size_t length = std::min(size_, ln.size_);
+	size_t old = size_;
+	ret->size_ = 0;
 	for (size_t i = 0; i < length; i++)
 	{
-		int temp = ar[i] + ln.ar[i] + perenos;
-		if (temp >= DEL)
+		int temp = number_[i] + ln.number_[i] + carry;
+		if (temp >= DEL_)
 		{
-			ret->ar[i] = ar[i] + ln.ar[i] + perenos;
-			perenos = 1;
+			ret->number_[i] = number_[i] + ln.number_[i] + carry;
+			carry = 1;
 		}
 		else
 		{
-			ret->ar[i] = temp;
-			perenos = 0;
+			ret->number_[i] = temp;
+			carry = 0;
 		}
-		if (ret->ar[i] != 0)
+		if (ret->number_[i] != 0)
 		{
 			zero = 0;
 		}
@@ -551,81 +622,81 @@ int LN::addModule(const LN &ln, LN *ret) const
 		{
 			zero++;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	for (size_t i = ret->size; i < old; i++)
+	for (size_t i = ret->size_; i < old; i++)
 	{
-		int temp = ar[i] + perenos;
-		if (temp >= DEL)
+		int temp = number_[i] + carry;
+		if (temp >= DEL_)
 		{
-			perenos = 1;
-			ret->ar[i] = temp % DEL;
+			carry = 1;
+			ret->number_[i] = temp % DEL_;
 		}
 		else
 		{
-			ret->ar[i] = temp;
-			perenos = 0;
+			ret->number_[i] = temp;
+			carry = 0;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	for (size_t i = ret->size; i < ln.size; i++)
+	for (size_t i = ret->size_; i < ln.size_; i++)
 	{
-		int temp = ln.ar[i] + perenos;
-		if (temp >= DEL)
+		int temp = ln.number_[i] + carry;
+		if (temp >= DEL_)
 		{
-			perenos = 1;
-			ret->ar[i] = temp % DEL;
+			carry = 1;
+			ret->number_[i] = temp % DEL_;
 		}
 		else
 		{
-			ret->ar[i] = temp;
-			perenos = 0;
+			ret->number_[i] = temp;
+			carry = 0;
 		}
-		ret->size++;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
-	if (perenos == 1)
+	if (carry == 1)
 	{
-		ret->ar[ret->size] = 1;
-		ret->size++;
+		ret->number_[ret->size_] = 1;
+		ret->size_++;
 		ret->ensureCapacity();
 	}
 	return 0;
 }
 int LN::compareTo(const LN &ln) const
 {
-	if (sign < ln.sign)
+	if (sign_ < ln.sign_)
 	{
 		return -1;
 	}
-	else if (sign > ln.sign)
+	else if (sign_ > ln.sign_)
 	{
 		return 1;
 	}
 	int ret = compareModule(ln);
-	return ret * sign;
+	return ret * sign_;
 }
 int LN::compareModule(const LN &ln) const
 {
 	int ret = 0;
-	if (size < ln.size)
+	if (size_ < ln.size_)
 	{
 		return -1;
 	}
-	else if (size > ln.size)
+	else if (size_ > ln.size_)
 	{
 		return 1;
 	}
-	for (size_t i = 1; i < size + 1; i++)
+	for (size_t i = 1; i < size_ + 1; i++)
 	{
-		if (ar[size - i] < ln.ar[size - i])
+		if (number_[size_ - i] < ln.number_[size_ - i])
 		{
 			ret = -1;
 			break;
 		}
-		else if (ar[size - i] > ln.ar[size - i])
+		else if (number_[size_ - i] > ln.number_[size_ - i])
 		{
 			ret = 1;
 			break;
@@ -636,39 +707,39 @@ int LN::compareModule(const LN &ln) const
 
 void LN::ensureCapacity()
 {
-	if (size >= capacity)
+	if (size_ >= capacity_)
 	{
-		capacity = 2 * capacity;
-		auto *newAr = new uint8_t[capacity];
+		capacity_ = 2 * capacity_;
+		auto *newAr = new uint8_t[capacity_];
 		if (!newAr)
 		{
-			throw 2;
+			throw LNOutOfMemoryException("Not enough memory\n");;
 		}
-		memcpy(newAr, ar, size * sizeof(uint8_t));
-		delete[] ar;
-		ar = newAr;
+		memcpy(newAr, number_, size_ * sizeof(uint8_t));
+		delete[] number_;
+		number_ = newAr;
 	}
 }
 void LN::resize(size_t newcap)
 {
-	if (capacity < newcap)
+	if (capacity_ < newcap)
 	{
-		capacity = newcap;
-		auto *newAr = new uint8_t[capacity];
+		capacity_ = newcap;
+		auto *newAr = new uint8_t[capacity_];
 		if (!newAr)
 		{
-			throw 2;
+			throw LNOutOfMemoryException("Not enough memory\n");;
 		}
-		memcpy(newAr, ar, size * sizeof(uint8_t));
-		delete[] ar;
-		ar = newAr;
+		memcpy(newAr, number_, size_ * sizeof(uint8_t));
+		delete[] number_;
+		number_ = newAr;
 	}
 }
 LN &LN::operator+=(const LN &ln)
 {
-	if (isNan || ln.isNan)
+	if (isNan_ || ln.isNan_)
 	{
-		isNan = 1;
+		isNan_ = 1;
 		return *this;
 	}
 	addSigned(*this, ln);
@@ -676,9 +747,9 @@ LN &LN::operator+=(const LN &ln)
 }
 LN &LN::operator-=(const LN &ln)
 {
-	if (isNan || ln.isNan)
+	if (isNan_ || ln.isNan_)
 	{
-		isNan = 1;
+		isNan_ = 1;
 		return *this;
 	}
 	subtractSigned(*this, ln);
@@ -686,17 +757,24 @@ LN &LN::operator-=(const LN &ln)
 }
 LN &LN::operator*=(const LN &ln)
 {
-	if (isNan || ln.isNan)
+	if (isNan_ || ln.isNan_)
 	{
-		isNan = 1;
+		isNan_ = 1;
 		return *this;
 	}
-	multiplySigned(*this, ln);
+	LN copy = LN();
+	if (sign_ == 0 || ln.sign_ == 0)
+	{
+		*this = copy;
+		return *this;
+	}
+	karatsubaMultiply(copy, ln);
+	*this = copy;
 	return *this;
 }
 LN::operator bool() const
 {
-	if (sign == 0 && size == 1 && ar[0] == 0)
+	if (sign_ == 0 && size_ == 1 && number_[0] == 0)
 	{
 		return false;
 	}
@@ -704,42 +782,43 @@ LN::operator bool() const
 }
 LN::~LN()
 {
-	delete[] ar;
+	delete[] number_;
 }
-void print(const LN &ln)
+void LN::print(const LN &ln)
 {
 	::uint64_t acc = 0ll;
-	for (::uint64_t i = 0; i < ln.size; i++)
+	for (::uint64_t i = 0; i < ln.size_; i++)
 	{
-		acc += ((size_t)ln.ar[i]) * (1ll << (8ll * i));
+		printf("%i ", ln.number_[i]);
+		acc += ((size_t)ln.number_[i]) * (1ll << (8ll * i));
 	}
-	printf(" --- val %i %zu\n", ln.sign, acc);
+	printf(" --- val %zu, %i %zu\n", ln.size_, ln.sign_, acc);
 }
 char *LN::toString() const
 {
-	if (isNan)
+	if (isNan_)
 	{
-		return new char[3]{ 'N', 'a', 'N' };
+		return new char[4]{ 'N', 'a', 'N' };
 	}
-	size_t strSize = size * 2 + 1 - (ar[size - 1] < 16) + (sign == -1);
+	size_t strSize = size_ * 2 + 1 - (number_[size_ - 1] < 16) + (sign_ == -1);
 	char *str = new char[strSize];
 	if (!str)
 	{
-		throw 2;
+		throw LNOutOfMemoryException("Not enough memory\n");;
 	}
 	str[strSize - 1] = '\0';
 	strSize--;
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < size_; i++)
 	{
-		int first = ar[i] % 16;
-		int second = (ar[i] / 16) % 16;
+		int first = number_[i] % 16;
+		int second = (number_[i] / 16) % 16;
 		str[strSize - i * 2 - 1] = makeChar(first);
-		if (i != size - 1 || second != 0)
+		if (i != size_ - 1 || second != 0)
 		{
 			str[strSize - i * 2 - 2] = makeChar(second);
 		}
 	}
-	if (sign == -1 && (size != 1 || ar[0] != 0))
+	if (sign_ == -1 && (size_ != 1 || number_[0] != 0))
 	{
 		str[0] = '-';
 	}
@@ -752,36 +831,47 @@ LN operator""_ln(const char *ln)
 LN::LN(const std::string_view num)
 {
 	size_t s = num.length();
-	size_t ind = s - 1;
-	capacity = s / 2;
-	isNan = 0;
-	ar = new uint8_t[capacity];
-	if (!ar)
+	size_t ind = s;
+	capacity_ = (s + 1) / 2 + 2;
+	isNan_ = 0;
+	number_ = new uint8_t[capacity_];
+	if (!number_)
 	{
-		throw 2;
+		throw LNOutOfMemoryException("Not enough memory\n");;
 	}
 	if (num[0] == '-')
 	{
-		sign = -1;
-		if (num[1] == '0')
+		sign_ = -1;
+		if (num[1] == '0' && ind == 2)
 		{
-			sign = 0;
+			sign_ = 0;
+			size_ = 1;
+			number_[0] = 0;
+			return;
 		}
 	}
 	else
 	{
-		sign = 1;
-		if (num[0] == '0')
+		sign_ = 1;
+		if (num[0] == '0' && ind == 1)
 		{
-			sign = 0;
+			sign_ = 0;
+			size_ = 1;
+			number_[0] = 0;
+			return;
 		}
 	}
-	size = 0;
-	while (ind > (1 + (sign == -1)))
+	size_ = 0;
+	int begin = (0 + (sign_ == -1));
+	if (ind > 1 && (num[1 + (sign_ == -1)] == 'X' || num[1 + (sign_ == - 1)] == 'x'))
 	{
-		size_t nu = makeNum(num[ind]) + 16 * makeNum(num[ind - 1]);
-		ar[size] = nu;
-		size++;
+		begin += 2;
+	}
+	while (ind - begin >= 2)
+	{
+		size_t nu = makeNum(num[ind - 1]) + 16 * makeNum(num[ind - 2]);
+		number_[size_] = nu;
+		size_++;
 		ensureCapacity();
 		if (ind < 2)
 		{
@@ -789,33 +879,27 @@ LN::LN(const std::string_view num)
 		}
 		ind -= 2;
 	}
-	if (ind == 1 + (sign == -1))
+	if (ind == begin + 1)
 	{
-		ar[size] = makeNum(num[ind]) + 16 * makeNum(num[ind - 1]);
-		size++;
-		ensureCapacity();
-	}
-	if (ind == 0 + (sign == -1))
-	{
-		ar[size] = makeNum(num[ind]);
-		size++;
+		number_[size_] = makeNum(num[ind - 1]);
+		size_++;
 		ensureCapacity();
 	}
 }
 LN::operator long long() const
 {
-	if (sign == 1 && *this > LN(LONG_LONG_MAX))
+	if (sign_ == 1 && *this > LN(LONG_LONG_MAX))
 	{
-		throw 1;
+		throw LNOverflowException("LN number to large");
 	}
-	if (sign == -1 && *this < LN(LONG_LONG_MIN))
+	if (sign_ == -1 && *this < LN(LONG_LONG_MIN))
 	{
-		throw 1;
+		throw LNOverflowException("LN number to large");
 	}
 	long long acc = 0;
-	for (int i = 0; i < size; i++)
+	for (int i = 0; i < size_; i++)
 	{
-		acc += sign * ar[i] * (1ll << (8ll * i));
+		acc += sign_ * number_[i] * (1ll << (8ll * i));
 	}
 	return acc;
 }
@@ -849,33 +933,33 @@ char LN::makeChar(int num)
 }
 bool LN::operator>(const LN &ln) const
 {
-	return compareTo(ln) == 1 && !isNan && !ln.isNan;
+	return compareTo(ln) == 1 && !isNan_ && !ln.isNan_;
 }
 bool LN::operator<(const LN &ln) const
 {
-	return compareTo(ln) == -1 && !isNan && !ln.isNan;
+	return compareTo(ln) == -1 && !isNan_ && !ln.isNan_;
 }
 bool LN::operator==(const LN &ln) const
 {
-	return (compareTo(ln) == 0 && !isNan && !ln.isNan);
+	return (compareTo(ln) == 0 && !isNan_ && !ln.isNan_);
 }
 bool LN::operator<=(const LN &ln) const
 {
-	return compareTo(ln) <= 0 && !isNan && !ln.isNan;
+	return compareTo(ln) <= 0 && !isNan_ && !ln.isNan_;
 }
 bool LN::operator>=(const LN &ln) const
 {
-	return compareTo(ln) >= 0 && !isNan && !ln.isNan;
+	return compareTo(ln) >= 0 && !isNan_ && !ln.isNan_;
 }
 bool LN::operator!=(const LN &ln) const
 {
-	return compareTo(ln) != 0 || isNan || ln.isNan;
+	return compareTo(ln) != 0 || isNan_ || ln.isNan_;
 }
 LN &LN::operator%=(const LN &ln)
 {
-	if (ln.sign == 0 || ln.isNan || isNan)
+	if (ln.sign_ == 0 || ln.isNan_ || isNan_)
 	{
-		isNan = 1;
+		isNan_ = 1;
 		return *this;
 	}
 	*this -= ((*this / ln) * ln);
@@ -883,91 +967,88 @@ LN &LN::operator%=(const LN &ln)
 }
 LN &LN::operator/=(const LN &ln)
 {
-	if (ln.sign == 0 || ln.isNan || isNan)
+	if (ln.sign_ == 0 || ln.isNan_ || isNan_)
 	{
-		isNan = 1;
+		isNan_ = 1;
 		return *this;
 	}
-	divideSigned(*this, ln);
+	LN copy = LN();
+	divideSigned(copy, ln);
+	*this = copy;
 	return *this;
 }
 void LN::divideSigned(LN &ret, const LN &ln) const
 {
 	LN copy = LN();
 	copy = *this;
-	ret.sign = sign == ln.sign ? 1 : -1;
-	copy.sign = 1;
-	ret.size = 0;
+	ret.sign_ = sign_ == ln.sign_ ? 1 : -1;
+	copy.sign_ = 1;
+	ret.size_ = 0;
 	long long tempold = -1;
-	while (copy.size > 0)
+	while (copy.size_ > 0)
 	{
 		int greater = 0;
 		LN temp = LN();
-		temp.size = 0;
-		temp.sign = 1;
+		temp.size_ = 0;
+		temp.sign_ = 1;
 		size_t takenSize = 0;
-		for (size_t j = 0; j < copy.size; j++)
+		for (size_t j = 0; j < copy.size_; j++)
 		{
-			temp.ar[j] = copy.ar[copy.size - j - 1];
-			temp.size++;
+			temp.number_[j] = copy.number_[copy.size_ - j - 1];
+			temp.size_++;
 			temp.ensureCapacity();
-			if (j < ln.size && temp.ar[j] < ln.ar[ln.size - j - 1] && greater == 0)
+			if (j < ln.size_ && temp.number_[j] < ln.number_[ln.size_ - j - 1] && greater == 0)
 			{
 				greater = -1;
 			}
-			else if (j < ln.size && temp.ar[j] > ln.ar[ln.size - j - 1] && greater == 0)
+			else if (j < ln.size_ && temp.number_[j] > ln.number_[ln.size_ - j - 1] && greater == 0)
 			{
 				greater = 1;
 			}
-			if (greater == 1 && j == ln.size - 1)
+			if (greater == 1 && j == ln.size_ - 1)
 			{
 				break;
 			}
-			else if (greater < 1 && j == ln.size)
+			else if (greater < 1 && j == ln.size_)
 			{
 				break;
 			}
 		}
-		if (greater == 0 && temp.size == ln.size)
+		if (greater == 0 && temp.size_ == ln.size_)
 		{
-			ret.ar[ret.size] = 1;
-			ret.size++;
+			ret.number_[ret.size_] = 1;
+			ret.size_++;
 			ret.ensureCapacity();
 			break;
 		}
-		if ((greater == 1 && temp.size != ln.size) || (greater < 1 && temp.size != ln.size + 1))
+		if ((greater == 1 && temp.size_ != ln.size_) || (greater < 1 && temp.size_ != ln.size_ + 1))
 		{
-			if (temp.size - tempold > 0)
+			if (temp.size_ - tempold > 0)
 			{
-				ret.ar[ret.size] = 0;
-				ret.size++;
+				ret.number_[ret.size_] = 0;
+				ret.size_++;
 				ret.ensureCapacity();
 			}
-			if (ret.size == 0)
+			if (ret.size_ == 0)
 			{
-				ret.size = 1;
+				ret.size_ = 1;
 			}
 			break;
 		}
-		if (tempold != -1)
+		if (tempold != -1 && tempold != temp.size_)
 		{
-			for (int i = 0; i < (temp.size - tempold - 1); i++)
+			for (long long i = 0; i < (temp.size_ - tempold - 1); i++)
 			{
-				ret.ar[ret.size] = 0;
-				ret.size++;
+				ret.number_[ret.size_] = 0;
+				ret.size_++;
 				ret.ensureCapacity();
 			}
 		}
-		takenSize = temp.size;
+		takenSize = temp.size_;
 		LN temp2 = LN();
 		temp2 = ln;
-		temp2.sign = 1;
-		for (size_t j = 0; j < temp.size / 2; j++)
-		{
-			uint8_t tmp = temp.ar[j];
-			temp.ar[j] = temp.ar[temp.size - j - 1];
-			temp.ar[temp.size - j - 1] = tmp;
-		}
+		temp2.sign_ = 1;
+		lnReverse(temp);
 		for (int j = 1; j < 256; j++)
 		{
 			LN umn = LN(j);
@@ -975,9 +1056,9 @@ void LN::divideSigned(LN &ret, const LN &ln) const
 			if (temp2.compareModule(temp) == 1)
 			{
 				LN supe = ln * LN(j - 1);
-				supe.sign = 1;
-				ret.ar[ret.size] = j - 1;
-				ret.size++;
+				supe.sign_ = 1;
+				ret.number_[ret.size_] = j - 1;
+				ret.size_++;
 				ret.ensureCapacity();
 				temp -= supe;
 				break;
@@ -985,24 +1066,24 @@ void LN::divideSigned(LN &ret, const LN &ln) const
 			if (j == 255)
 			{
 				LN supe = ln * LN(j);
-				supe.sign = 1;
-				ret.ar[ret.size] = j;
-				ret.size++;
+				supe.sign_ = 1;
+				ret.number_[ret.size_] = j;
+				ret.size_++;
 				ret.ensureCapacity();
 				temp -= supe;
 			}
 			temp2 = ln;
 		}
-		tempold = temp.size;
-		if (temp.sign == 0 && temp.ar[0] == 0 && temp.size == 1)
+		tempold = temp.size_;
+		if (temp.sign_ == 0 && temp.number_[0] == 0 && temp.size_ == 1)
 		{
 			tempold = 0;
 		}
-		int zero = 0;
-		for (size_t j = copy.size - takenSize; j < copy.size - (takenSize - temp.size); j++)
+		size_t zero = 0;
+		for (size_t j = copy.size_ - takenSize; j < copy.size_ - (takenSize - temp.size_); j++)
 		{
-			copy.ar[j] = temp.ar[j - (copy.size - takenSize)];
-			if (copy.ar[j] == 0)
+			copy.number_[j] = temp.number_[j - (copy.size_ - takenSize)];
+			if (copy.number_[j] == 0)
 			{
 				zero++;
 			}
@@ -1011,27 +1092,22 @@ void LN::divideSigned(LN &ret, const LN &ln) const
 				zero = 0;
 			}
 		}
-		copy.size -= (takenSize - temp.size) + zero;
-		for (long long j = copy.size - 1; j > -1; j--)
+		copy.size_ -= (takenSize - temp.size_) + zero;
+		for (long long j = copy.size_ - 1; j > -1; j--)
 		{
-			if (copy.ar[j] != 0)
+			if (copy.number_[j] != 0)
 			{
 				break;
 			}
-			ret.ar[ret.size] = 0;
-			ret.size++;
+			ret.number_[ret.size_] = 0;
+			ret.size_++;
 			ret.ensureCapacity();
-			copy.size--;
+			copy.size_--;
 		}
 	}
-	for (size_t j = 0; j < ret.size / 2; j++)
+	lnReverse(ret);
+	if (ret.size_ == 1 && ret.number_[0] == 0)
 	{
-		uint8_t tmp = ret.ar[j];
-		ret.ar[j] = ret.ar[ret.size - j - 1];
-		ret.ar[ret.size - j - 1] = tmp;
-	}
-	if (ret.size == 1 && ret.ar[0] == 0)
-	{
-		ret.sign = 0;
+		ret.sign_ = 0;
 	}
 }
