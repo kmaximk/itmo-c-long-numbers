@@ -6,9 +6,9 @@
 
 #include <deque>
 #include <fstream>
-#include <string>
-#include <istream>
 #include <iostream>
+#include <istream>
+#include <string>
 using namespace std;
 int main(int argc, char* argv[])
 {
