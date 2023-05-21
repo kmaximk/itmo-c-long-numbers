@@ -6,8 +6,9 @@
 
 #include <deque>
 #include <fstream>
-#include <iostream>
 #include <string>
+#include <istream>
+#include <iostream>
 using namespace std;
 int main(int argc, char* argv[])
 {
@@ -43,7 +44,7 @@ int main(int argc, char* argv[])
 			}
 			else if (str == "*" || str == "*=")
 			{
-				ans = sta.at(sta.size() - 1) * sta.at(sta.size() - 2);
+				ans = sta.at(sta.size() - 2) * sta.at(sta.size() - 1);
 			}
 			else if (str == "/" || str == "/=")
 			{
@@ -113,16 +114,13 @@ int main(int argc, char* argv[])
 		}
 		for (size_t i = 0; i < sta.size(); i++)
 		{
-			::fprintf(f, "%s\n", sta.at(sta.size() - i - 1).toString());
+			::fprintf(f, "%s\n", sta.at(i).toString());
 		}
 		fclose(f);
-	} catch (int x)
+	} catch (const LNOutOfMemoryException& e)
 	{
-		if (x == 2)
-		{
-			fprintf(stderr, "Not enough memory\n");
-			return ERROR_OUT_OF_MEMORY;
-		}
+		fprintf(stderr, "%s", e.message);
+		return ERROR_OUT_OF_MEMORY;
 	}
 	return SUCCESS;
 }
